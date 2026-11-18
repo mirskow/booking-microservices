@@ -69,7 +69,7 @@ func run() error {
 
 	// Initialize HTTP server
 	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
+		Addr:              fmt.Sprintf(":%d", cfg.HTTPPort),
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -80,7 +80,7 @@ func run() error {
 	serverErrors := make(chan error, 1)
 
 	go func() {
-		log.Printf("profile service listening on port %d", cfg.Port)
+		log.Printf("profile service listening on port %d", cfg.HTTPPort)
 
 		err := server.ListenAndServe()
 		if errors.Is(err, http.ErrServerClosed) {

@@ -1,0 +1,345 @@
+services:
+
+  # ==========================================================
+  # PostgreSQL
+  # ==========================================================
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: booking-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+
+      USER_DB_NAME: ${USER_DB_NAME}
+      USER_DB_USER: ${USER_DB_USER}
+      USER_DB_PASSWORD: ${USER_DB_PASSWORD}
+
+      BOOKING_DB_NAME: ${BOOKING_DB_NAME}
+      BOOKING_DB_USER: ${BOOKING_DB_USER}
+      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD}
+
+      NOTIFICATION_DB_NAME: ${NOTIFICATION_DB_NAME}
+      NOTIFICATION_DB_USER: ${NOTIFICATION_DB_USER}
+      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d postgres"
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # User database migrations
+  # ==========================================================
+
+  user-migrations:
+    image: postgres:17-alpine
+
+    restart: "no"
+
+    environment:
+      DATABASE_URL: ${USER_DATABASE_URL}
+
+    volumes:
+      - ./user-service/migrations:/migrations:ro
+
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+
+        for file in /migrations/*.sql; do
+          echo "Applying migration: $$file"
+          psql "$$DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -f "$$file"
+        done
+
+        echo "User migrations completed"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # Booking database migrations
+  # ==========================================================
+
+  booking-migrations:
+    image: postgres:17-alpine
+
+    restart: "no"
+
+    environment:
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+
+    volumes:
+      - ./booking-service/migrations:/migrations:ro
+
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+
+        for file in /migrations/*.sql; do
+          echo "Applying migration: $$file"
+          psql "$$DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -f "$$file"
+        done
+
+        echo "Booking migrations completed"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # Notification database migrations
+  # ==========================================================
+
+  notification-migrations:
+    image: postgres:17-alpine
+
+    restart: "no"
+
+    environment:
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL}
+
+    volumes:
+      - ./notification-service/migrations:/migrations:ro
+
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+
+        for file in /migrations/*.sql; do
+          echo "Applying migration: $$file"
+          psql "$$DATABASE_URL" \
+            -v ON_ERROR_STOP=1 \
+            -f "$$file"
+        done
+
+        echo "Notification migrations completed"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # User service
+  # ==========================================================
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+
+    image: booking-microservices/user-service:latest
+
+    restart: unless-stopped
+
+    environment:
+      HTTP_PORT: 8080
+      DATABASE_URL: ${USER_DATABASE_URL}
+
+      SLOT_DURATION: ${USER_SLOT_DURATION:-60m}
+
+      HTTP_READ_TIMEOUT: ${USER_HTTP_READ_TIMEOUT:-10s}
+      HTTP_WRITE_TIMEOUT: ${USER_HTTP_WRITE_TIMEOUT:-15s}
+      HTTP_IDLE_TIMEOUT: ${USER_HTTP_IDLE_TIMEOUT:-60s}
+
+    ports:
+      - "${USER_EXTERNAL_PORT:-8081}:8080"
+
+    depends_on:
+      user-migrations:
+        condition: service_completed_successfully
+
+    read_only: true
+
+    tmpfs:
+      - /tmp
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # Notification service
+  # ==========================================================
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+
+    image: booking-microservices/notification-service:latest
+
+    restart: unless-stopped
+
+    environment:
+      HTTP_PORT: 8080
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL}
+
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-notifications@example.local}
+
+      HTTP_READ_TIMEOUT: ${NOTIFICATION_HTTP_READ_TIMEOUT:-10s}
+      HTTP_WRITE_TIMEOUT: ${NOTIFICATION_HTTP_WRITE_TIMEOUT:-15s}
+      HTTP_IDLE_TIMEOUT: ${NOTIFICATION_HTTP_IDLE_TIMEOUT:-60s}
+
+    ports:
+      - "${NOTIFICATION_EXTERNAL_PORT:-8082}:8080"
+
+    depends_on:
+      notification-migrations:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_started
+
+    read_only: true
+
+    tmpfs:
+      - /tmp
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # Booking service
+  # ==========================================================
+
+  booking-service:
+    build:
+      context: ./booking-service
+      dockerfile: Dockerfile
+
+    image: booking-microservices/booking-service:latest
+
+    restart: unless-stopped
+
+    environment:
+      HTTP_PORT: 8080
+      DATABASE_URL: ${BOOKING_DATABASE_URL}
+
+      USER_SERVICE_URL: http://user-service:8080
+      NOTIFICATION_SERVICE_URL: http://notification-service:8080
+
+      HTTP_READ_TIMEOUT: ${BOOKING_HTTP_READ_TIMEOUT:-10s}
+      HTTP_WRITE_TIMEOUT: ${BOOKING_HTTP_WRITE_TIMEOUT:-15s}
+      HTTP_IDLE_TIMEOUT: ${BOOKING_HTTP_IDLE_TIMEOUT:-60s}
+
+    ports:
+      - "${BOOKING_EXTERNAL_PORT:-8083}:8080"
+
+    depends_on:
+      booking-migrations:
+        condition: service_completed_successfully
+      user-service:
+        condition: service_started
+      notification-service:
+        condition: service_started
+
+    read_only: true
+
+    tmpfs:
+      - /tmp
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    networks:
+      - backend
+
+
+  # ==========================================================
+  # Mailpit
+  # ==========================================================
+
+  mailpit:
+    image: axllent/mailpit:latest
+
+    container_name: booking-mailpit
+
+    restart: unless-stopped
+
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+    networks:
+      - backend
+
+
+# ============================================================
+# Networks
+# ============================================================
+
+networks:
+  backend:
+    driver: bridge
+
+
+# ============================================================
+# Volumes
+# ============================================================
+
+volumes:
+  postgres_data:

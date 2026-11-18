@@ -56,8 +56,16 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
-	if _, err := strconv.Atoi(cfg.HTTPPort); err != nil {
-		return nil, fmt.Errorf("invalid HTTP_PORT: %w", err)
+	if err := validatePort(cfg.HTTPPort); err != nil {
+		return nil, fmt.Errorf("HTTP_PORT: %w", err)
+	}
+
+	if cfg.UserServiceURL == "" {
+		return nil, fmt.Errorf("USER_SERVICE_URL is required")
+	}
+
+	if cfg.NotificationServiceURL == "" {
+		return nil, fmt.Errorf("NOTIFICATION_SERVICE_URL is required")
 	}
 
 	return cfg, nil
@@ -73,7 +81,10 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
-func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
+func getDurationEnv(
+	key string,
+	defaultValue time.Duration,
+) time.Duration {
 	value := os.Getenv(key)
 
 	if value == "" {
@@ -86,4 +97,17 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 	}
 
 	return duration
+}
+
+func validatePort(port string) error {
+	value, err := strconv.Atoi(port)
+	if err != nil {
+		return fmt.Errorf("must be a number")
+	}
+
+	if value < 1 || value > 65535 {
+		return fmt.Errorf("must be between 1 and 65535")
+	}
+
+	return nil
 }
