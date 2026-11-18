@@ -6,9 +6,9 @@ PROJECT_NAME := booking-microservices
 
 COMPOSE := docker compose
 
-SERVICES := user-service booking-service notification-service
+SERVICES := profile-service booking-service notification-service
 
-GO_SERVICES := user-service booking-service notification-service
+GO_SERVICES := profile-service booking-service notification-service
 
 
 # ============================================================

@@ -1,6 +1,7 @@
 # ============================================================
 # Build stage
 # ============================================================
+
 FROM golang:1.27-alpine AS builder
 
 WORKDIR /app
@@ -14,19 +15,22 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -tags="netgo osusergo timetzdata" \
     -ldflags="-s -w" \
-    -o /app/user-service \
-    ./cmd/server
+    -o /app/profile-service \
+    ./cmd
 
 
 # ============================================================
 # Runtime stage
 # ============================================================
+
 FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
 
-COPY --from=builder /app/user-service /app/user-service
+COPY --from=builder /app/profile-service /app/profile-service
+
+USER nonroot:nonroot
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/user-service"]
+ENTRYPOINT ["/app/profile-service"]

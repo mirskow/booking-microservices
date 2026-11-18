@@ -4,49 +4,41 @@ services:
   # PostgreSQL
   # ==========================================================
 
-  postgres:
-    image: postgres:17-alpine
-    container_name: booking-postgres
+postgres:
+  image: postgres:17-alpine
+  container_name: booking-postgres
+  restart: unless-stopped
 
-    restart: unless-stopped
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER:-postgres}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    POSTGRES_DB: ${POSTGRES_DB:-postgres}
 
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: postgres
+    USER_DB_NAME: ${USER_DB_NAME:-user_db}
+    USER_DB_USER: ${USER_DB_USER:-user_user}
+    USER_DB_PASSWORD: ${USER_DB_PASSWORD:-user_password}
 
-      USER_DB_NAME: ${USER_DB_NAME}
-      USER_DB_USER: ${USER_DB_USER}
-      USER_DB_PASSWORD: ${USER_DB_PASSWORD}
+    BOOKING_DB_NAME: ${BOOKING_DB_NAME:-booking_db}
+    BOOKING_DB_USER: ${BOOKING_DB_USER:-booking_user}
+    BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD:-booking_password}
 
-      BOOKING_DB_NAME: ${BOOKING_DB_NAME}
-      BOOKING_DB_USER: ${BOOKING_DB_USER}
-      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD}
+    NOTIFICATION_DB_NAME: ${NOTIFICATION_DB_NAME:-notification_db}
+    NOTIFICATION_DB_USER: ${NOTIFICATION_DB_USER:-notification_user}
+    NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification_password}
 
-      NOTIFICATION_DB_NAME: ${NOTIFICATION_DB_NAME}
-      NOTIFICATION_DB_USER: ${NOTIFICATION_DB_USER}
-      NOTIFICATION_DB_PASSWORD: ${NOTIFICATION_DB_PASSWORD}
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+    - ./postgres/init:/docker-entrypoint-initdb.d:ro
 
-    ports:
-      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+  networks:
+    - backend
 
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
-
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d postgres"
-        ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-
-    networks:
-      - backend
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+    start_period: 10s
 
 
   # ==========================================================
@@ -62,7 +54,7 @@ services:
       DATABASE_URL: ${USER_DATABASE_URL}
 
     volumes:
-      - ./user-service/migrations:/migrations:ro
+      - ./profile-service/migrations:/migrations:ro
 
     command:
       - sh
@@ -167,12 +159,12 @@ services:
   # User service
   # ==========================================================
 
-  user-service:
+  profile-service:
     build:
-      context: ./user-service
+      context: ./profile-service
       dockerfile: Dockerfile
 
-    image: booking-microservices/user-service:latest
+    image: booking-microservices/profile-service:latest
 
     restart: unless-stopped
 
@@ -276,7 +268,7 @@ services:
       HTTP_PORT: 8080
       DATABASE_URL: ${BOOKING_DATABASE_URL}
 
-      USER_SERVICE_URL: http://user-service:8080
+      USER_SERVICE_URL: http://profile-service:8080
       NOTIFICATION_SERVICE_URL: http://notification-service:8080
 
       HTTP_READ_TIMEOUT: ${BOOKING_HTTP_READ_TIMEOUT:-10s}
@@ -289,7 +281,7 @@ services:
     depends_on:
       booking-migrations:
         condition: service_completed_successfully
-      user-service:
+      profile-service:
         condition: service_started
       notification-service:
         condition: service_started

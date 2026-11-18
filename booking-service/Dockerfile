@@ -15,7 +15,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -tags="netgo osusergo timetzdata" \
     -ldflags="-s -w" \
     -o /app/booking-service \
-    ./cmd/server
+    ./cmd
 
 
 # ============================================================
