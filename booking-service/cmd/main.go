@@ -10,10 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/mirskov/booking-microservices/booking-service/internal/booking"
 	"github.com/mirskov/booking-microservices/booking-service/internal/clients"
 	"github.com/mirskov/booking-microservices/booking-service/internal/config"
 	"github.com/mirskov/booking-microservices/booking-service/internal/health"
+	"github.com/mirskov/booking-microservices/booking-service/internal/metrics"
 	"github.com/mirskov/booking-microservices/booking-service/internal/storage"
 )
 
@@ -61,10 +64,11 @@ func run() error {
 
 	bookingHandler.RegisterRoutes(mux)
 	healthHandler.RegisterRoutes(mux)
+	mux.Handle("/metrics", promhttp.Handler())
 
 	server := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
-		Handler:           mux,
+		Handler:           metrics.Middleware(mux),
 		ReadTimeout:       cfg.HTTPReadTimeout,
 		WriteTimeout:      cfg.HTTPWriteTimeout,
 		IdleTimeout:       cfg.HTTPIdleTimeout,

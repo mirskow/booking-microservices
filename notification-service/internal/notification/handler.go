@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"net/http"
 	"strconv"
@@ -54,6 +55,7 @@ func (h *Handler) ProcessEvent(w http.ResponseWriter, r *http.Request) {
 
 	response, err := h.service.ProcessEvent(r.Context(), event)
 	if err != nil {
+		log.Printf("ProcessEvent failed: event_id=%s, error=%v", event.EventID, err)
 		if errors.Is(err, ErrInvalidInput) {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return

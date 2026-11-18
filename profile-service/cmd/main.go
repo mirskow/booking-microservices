@@ -13,9 +13,11 @@ import (
 
 	"github.com/mirskov/booking-microservices/profile-service/internal/config"
 	"github.com/mirskov/booking-microservices/profile-service/internal/health"
+	"github.com/mirskov/booking-microservices/profile-service/internal/metrics"
 	"github.com/mirskov/booking-microservices/profile-service/internal/schedule"
 	"github.com/mirskov/booking-microservices/profile-service/internal/storage"
 	"github.com/mirskov/booking-microservices/profile-service/internal/user"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -63,14 +65,16 @@ func run() error {
 	mux.HandleFunc("GET /profiles/{id}", userHandler.GetByID)
 	mux.HandleFunc("PUT /profiles/{id}", userHandler.Update)
 
-	mux.HandleFunc("PUT /users/{id}/schedule", scheduleHandler.SetSchedule)
-	mux.HandleFunc("GET /users/{id}/schedule", scheduleHandler.GetSchedule)
-	mux.HandleFunc("GET /users/{id}/slots", scheduleHandler.GetSlots)
+	mux.HandleFunc("PUT /profiles/{id}/schedule", scheduleHandler.SetSchedule)
+	mux.HandleFunc("GET /profiles/{id}/schedule", scheduleHandler.GetSchedule)
+	mux.HandleFunc("GET /profiles/{id}/slots", scheduleHandler.GetSlots)
+
+	mux.Handle("/metrics", promhttp.Handler())
 
 	// Initialize HTTP server
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%s", cfg.HTTPPort),
-		Handler:           mux,
+		Handler:           metrics.Middleware(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,

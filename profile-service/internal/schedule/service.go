@@ -151,8 +151,15 @@ func (s *Service) GetSlots(
 			continue
 		}
 
-		startClock, _ := time.Parse("15:04", rule.StartTime)
-		endClock, _ := time.Parse("15:04", rule.EndTime)
+		startClock, err := time.Parse("15:04:05", rule.StartTime)
+		if err != nil {
+			return nil, fmt.Errorf("parse schedule start time: %w", err)
+		}
+
+		endClock, err := time.Parse("15:04:05", rule.EndTime)
+		if err != nil {
+			return nil, fmt.Errorf("parse schedule end time: %w", err)
+		}
 
 		start := time.Date(
 			requestedDate.Year(),

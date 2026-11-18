@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS notifications (
     event_id UUID NOT NULL,
 
     recipient_id UUID NOT NULL,
+    recipient_name VARCHAR(255) NOT NULL DEFAULT '',
+    recipient_email VARCHAR(320) NOT NULL DEFAULT '',
     booking_id UUID NOT NULL,
 
     type VARCHAR(50) NOT NULL,

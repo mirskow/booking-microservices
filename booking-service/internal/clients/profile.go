@@ -49,7 +49,7 @@ func (c *UserClient) GetUser(
 	userID uuid.UUID,
 ) (*User, error) {
 	endpoint := fmt.Sprintf(
-		"%s/users/%s",
+		"%s/profiles/%s",
 		c.baseURL,
 		userID,
 	)
@@ -66,7 +66,10 @@ func (c *UserClient) GetUser(
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request user-service: %w", err)
+		return nil, fmt.Errorf(
+			"request user-service: %w",
+			fmt.Errorf("%w: %v", ErrDependencyUnavailable, err),
+		)
 	}
 	defer resp.Body.Close()
 
@@ -96,7 +99,7 @@ func (c *UserClient) GetSlots(
 	date string,
 ) (*SlotsResponse, error) {
 	endpoint := fmt.Sprintf(
-		"%s/users/%s/slots?date=%s",
+		"%s/profiles/%s/slots?date=%s",
 		c.baseURL,
 		userID,
 		url.QueryEscape(date),
@@ -114,7 +117,10 @@ func (c *UserClient) GetSlots(
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request user-service slots: %w", err)
+		return nil, fmt.Errorf(
+			"request user-service slots: %w",
+			fmt.Errorf("%w: %v", ErrDependencyUnavailable, err),
+		)
 	}
 	defer resp.Body.Close()
 

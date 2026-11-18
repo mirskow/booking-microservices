@@ -40,6 +40,19 @@ services:
       retries: 10
       start_period: 10s
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-postgres}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # ==========================================================
   # User database migrations
@@ -318,6 +331,38 @@ services:
 
     networks:
       - backend
+  
+  # ==========================================================
+  # Prometheus
+  # ==========================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: booking-prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - backend
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped
+
+  # ==========================================================
+  # Grafana
+  # ==========================================================
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - backend
+    depends_on:
+      - prometheus
 
 
 # ============================================================
@@ -335,3 +380,4 @@ networks:
 
 volumes:
   postgres_data:
+  grafana-data:

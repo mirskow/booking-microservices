@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/mirskov/booking-microservices/booking-service/internal/clients"
 )
 
 const maxRequestBodySize = 1 << 20 // 1 MB
@@ -212,7 +214,16 @@ func handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrConflict):
 		writeError(w, http.StatusConflict, err.Error())
 
+	case errors.Is(err, clients.ErrDependencyUnavailable):
+		log.Printf("booking dependency unavailable: %v", err)
+		writeError(
+			w,
+			http.StatusServiceUnavailable,
+			"dependent service unavailable",
+		)
+
 	default:
+		log.Printf("booking service error: %v", err)
 		writeError(
 			w,
 			http.StatusInternalServerError,

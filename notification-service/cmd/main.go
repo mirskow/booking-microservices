@@ -13,8 +13,10 @@ import (
 	"github.com/mirskov/booking-microservices/notification-service/internal/config"
 	"github.com/mirskov/booking-microservices/notification-service/internal/health"
 	"github.com/mirskov/booking-microservices/notification-service/internal/mail"
+	"github.com/mirskov/booking-microservices/notification-service/internal/metrics"
 	"github.com/mirskov/booking-microservices/notification-service/internal/notification"
 	"github.com/mirskov/booking-microservices/notification-service/internal/storage"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -78,10 +80,12 @@ func run() error {
 	mux.HandleFunc("GET /health/live", healthHandler.Live)
 	mux.HandleFunc("GET /health/ready", healthHandler.Ready)
 
+	mux.Handle("/metrics", promhttp.Handler())
+
 	// 8. HTTP server
 	server := &http.Server{
 		Addr:              ":" + cfg.HTTPPort,
-		Handler:           mux,
+		Handler:           metrics.Middleware(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,
