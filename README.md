@@ -29,19 +29,24 @@
 
 ```mermaid
 flowchart LR
-    C[Клиент<br/>curl / Postman] -->|HTTP| B[booking-service<br/>:8083]
-    B -->|GET /profiles/id<br/>GET /profiles/id/slots| P[profile-service<br/>:8081]
-    B -->|POST /events| N[notification-service<br/>:8082]
-    N -->|SMTP| M[mailpit<br/>:1025 / UI :8025]
+    C["Клиент (curl / Postman)"] -->|HTTP| B["booking-service :8083"]
+    B -->|HTTP| P["profile-service :8081"]
+    B -->|HTTP| N["notification-service :8082"]
+    N -->|SMTP| M["Mailpit :1025"]
 
-    P --- PDB[(user_db)]
-    B --- BDB[(booking_db)]
-    N --- NDB[(notification_db)]
+    P --- PDB[("user_db")]
+    B --- BDB[("booking_db")]
+    N --- NDB[("notification_db")]
 
-    PR[prometheus<br/>:9090] -.->|/metrics| B
-    PR -.->|/metrics| P
-    PR -.->|/metrics| N
-    G[grafana<br/>:3000] --> PR
+    PR["Prometheus :9090"] -.-> B
+    PR -.-> P
+    PR -.-> N
+    PR -.-> PE["Postgres Exporter :9187"]
+    PE --> PDB
+    PE --> BDB
+    PE --> NDB
+
+    G["Grafana :3000"] --> PR
 ```
 
 ### Сценарий создания встречи (`POST /bookings`)
